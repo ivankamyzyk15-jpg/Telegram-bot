@@ -1,11 +1,29 @@
 import os
 import asyncio
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 from groq import Groq
 
+# ===== НАЛАШТУВАННЯ ВЕБ-СЕРВЕРА ДЛЯ RENDER =====
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+def run_health_check():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    server.serve_forever()
+
+# Запускаємо веб-сервер в окремому потоці
+threading.Thread(target=run_health_check, daemon=True).start()
+
+# ===== ОСНОВНИЙ КОД БОТА =====
 logging.basicConfig(level=logging.INFO)
 
 # Ключі беруться з налаштувань сервера
@@ -68,6 +86,7 @@ async def handle_audio_or_video_note(message: Message):
 
 async def main():
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
